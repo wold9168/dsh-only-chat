@@ -5,8 +5,8 @@
 - Sidebar entry `Only Chat` (仅聊天): one click starts or reuses a chat and opens it in the main panel.
 - Chat mode isolation: while a chat is open the sidebar's browsing region becomes this plugin's own flat
   chat list (host-like rows: title, relative time, running dot, hover keep / convert / delete) and the
-  hero's workspace and preset pickers become fixed Only Chat labels; leaving chat mode restores the host
-  chrome and removes the chat Workspace registration, so its row is invisible in normal mode.
+  hero's workspace chip and preset control render nothing; leaving chat mode restores the host chrome
+  and removes the chat Workspace registration, so its row is invisible in normal mode.
 - Keep (pin) exempts a chat from the automatic limit, and the Settings page shares the same row
   renderer as the sidebar. Chats are never archived.
 - A chat with no messages yet is left out of both lists (it is the draft you are looking at) while it

@@ -108,8 +108,8 @@ drops that registration when you leave. That gives two separate modes:
 Entering either mode is a click: the sidebar entry re-registers the Workspace, re-accounts the chats to
 it, and opens one; **Back to workspaces** opens your most recently active ordinary session.
 
-While a chat is open, the New Session hero's workspace chip and preset selector are replaced by fixed
-"Only Chat" labels, so the interface offers no other workspace and no other preset. The pairing is also
+While a chat is open, the New Session hero's workspace chip and preset selector render nothing, so the
+interface offers no other workspace and no other preset. The pairing is also
 enforced on the Host: a Session in the chat directory is put back on the Only Chat preset, and a Session
 that selects the Only Chat preset outside that directory is reverted to the deployment default. The
 Settings list reads the Host's own chat list, so it shows exactly what it can delete.

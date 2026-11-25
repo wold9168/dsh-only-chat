@@ -4,9 +4,10 @@
  * The sidebar entry starts (or reuses) a chat and hands it straight to the host
  * Conversation surface, so one click gives the user a chat they can type into.
  * While a chat is open, this half also takes over three seats of the host chrome
- * — the sidebar browsing region and the New Session hero's workspace and preset
- * pickers — so a chat sees no other workspace and no other preset. Chat history
- * and the kept-count limit are managed in a Settings section.
+ * — the sidebar browsing region becomes this plugin's chat list, and the New
+ * Session hero's workspace chip and preset selector render nothing — so a chat
+ * sees no other workspace and no other preset. Chat history and the kept-count
+ * limit are managed in a Settings section.
  *
  * Rows come from the Host's own chat list, joined with the shared Session catalog
  * for titles and running state. Plugin code draws no chat transcript of its own.
@@ -50,14 +51,13 @@ window.__ModuleLoader__.load({
         confirmDelete: 'Delete this chat?',
         confirmDeleteDesc: 'The chat log is deleted permanently and cannot be restored.',
         clearAll: 'Delete all chats',
-        confirmClearDesc: 'Every chat log here is deleted permanently. A chat that is still generating is left alone.',
+        confirmClearDesc: 'Every chat log here is deleted permanently, including kept ones. A chat that is still generating is left alone.',
         cleared: 'Deleted the chats.',
         nothingRemoved: 'Nothing was deleted. Chats still generating stay until that turn ends.',
         convert: 'Convert to a session',
         convertWorkspace: 'Target workspace',
         pinLabel: 'Keep this chat past the limit',
         unpinLabel: 'Let this chat be retired at the limit',
-        keptLabel: 'kept',
         convertWarning: 'The conversation is copied into a normal session in that workspace, with the normal tools, and this chat is deleted. A converted session cannot be turned back into a chat.',
         noWorkspace: 'No other workspace is registered yet, so nothing can be converted.',
         limitHeading: 'How many to keep',
@@ -100,14 +100,13 @@ window.__ModuleLoader__.load({
         confirmDelete: '删除这个聊天？',
         confirmDeleteDesc: '聊天记录会被永久删除，无法恢复。',
         clearAll: '删除全部聊天',
-        confirmClearDesc: '这里的全部聊天记录都会被永久删除。正在生成的聊天会保留到本轮结束。',
+        confirmClearDesc: '这里的全部聊天记录都会被永久删除，包括被保留（图钉）的。正在生成的聊天会保留到本轮结束。',
         cleared: '已删除全部聊天。',
         nothingRemoved: '没有删除任何聊天。正在生成的聊天会保留到本轮结束。',
         convert: '转为正常会话',
         convertWorkspace: '目标工作区',
         pinLabel: '保留这个聊天，超出上限也不会删',
         unpinLabel: '取消保留，超出上限时可能被删除',
-        keptLabel: '已保留',
         convertWarning: '这段对话会被复制成目标工作区里的普通会话，使用普通工具，然后删除这个聊天。转换后无法再变回聊天。',
         noWorkspace: '还没有别的工作区，所以暂时无法转换。',
         limitHeading: '保留数量',
@@ -151,10 +150,22 @@ window.__ModuleLoader__.load({
 .oc-dot{background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));flex:none;border-radius:50%;width:7px;height:7px}
 .oc-name{flex:1;min-width:0;font-size:13.5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .oc-meta{color:var(--dsw-alias-label-secondary);flex:none;font-variant-numeric:tabular-nums;font-size:12px}
-.oc-pin{color:var(--dsw-alias-label-secondary);flex:none;display:inline-flex}
 .oc-actions{flex:none;margin-left:auto;display:none;align-items:center;gap:1px}
-@media (hover:hover){.oc-row:hover .oc-actions,.oc-row:focus-within .oc-actions{display:inline-flex}.oc-row:hover .oc-meta{display:none}}
-@media (pointer:coarse){.oc-actions{display:inline-flex}}
+.oc-action-extra{display:none}
+@media (hover:hover){
+  /* Keyboard focus reveals the actions; a pointer click that leaves the button
+   * focused does not, which is what focus-visible distinguishes. The resting
+   * time label yields to the actions in both cases. */
+  .oc-row:hover .oc-actions,.oc-row:has(:focus-visible) .oc-actions{display:inline-flex}
+  .oc-row:hover .oc-action-extra,.oc-row:has(:focus-visible) .oc-action-extra{display:inline-flex}
+  .oc-row:hover .oc-meta,.oc-row:has(:focus-visible) .oc-meta{display:none}
+}
+/* A kept chat shows only its keep button while nothing is hovered. */
+.oc-row-kept .oc-actions{display:inline-flex}
+@media (pointer:coarse){
+  .oc-actions,.oc-action-extra{display:inline-flex}
+  .oc-meta{display:none}
+}
 .oc-btn{cursor:pointer;font:inherit;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);border-radius:16px;align-items:center;gap:6px;height:32px;padding:0 12px;font-size:13px;transition:background-color .18s ease,border-color .18s ease;display:inline-flex}
 .oc-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
 .oc-btn:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)));outline-offset:2px}
@@ -183,8 +194,14 @@ window.__ModuleLoader__.load({
 .oc-side-list{overflow:auto;flex-direction:column;gap:2px;display:flex}
 .oc-side-foot{padding:2px 6px 0}
 .oc-side-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5}
-.oc-hero{color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l2);border-radius:16px;align-items:center;gap:6px;padding:5px 11px;font-size:12.5px;display:inline-flex}
 @media (pointer:coarse){.oc-input{font-size:16px}}
+`
+
+    /** Rules that only apply while this plugin's hero marker is in the DOM. */
+    const heroCss = `
+.oc-marker{display:none}
+div:has(> .oc-marker) > button[aria-haspopup="menu"],
+div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
 `
 
     /** Resolve one bridge route against this page's base, as other plugin bridges do. */
@@ -263,9 +280,6 @@ window.__ModuleLoader__.load({
           h('path', { d: 'M6 7l1 12h10l1-12' }),
           h('path', { d: 'M10.5 11v5M13.5 11v5' }))
       }
-      if (kind === 'folder') {
-        return h('svg', svg, h('path', { d: 'M4 7h5l2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z' }))
-      }
       if (kind === 'branch') {
         return h('svg', svg,
           h('circle', { cx: 6, cy: 5.5, r: 2 }),
@@ -291,13 +305,13 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * A hero control with nothing to choose. In chat mode the workspace and the
-     * preset are both fixed to Only Chat, so the host's pickers would offer
-     * combinations the plugin refuses anyway.
+     * The hero while a chat is open: nothing can be chosen, so this renders no
+     * control of its own and hides the host chip that would open the workspace
+     * picker. The rule is scoped to the row this component sits inside, which is
+     * why the marker has to be rendered here rather than from a global style.
      */
-    function HeroLabel(props) {
-      const { t, label, kind } = props
-      return h('span', { className: 'oc-hero' }, h(Glyph, { size: 14, kind }), h('span', null, label ?? t('nav')))
+    function HeroQuiet() {
+      return h('span', { className: 'oc-marker', 'aria-hidden': true }, h('style', null, heroCss))
     }
 
     /** Subscribe to one observable snapshot store without losing its receiver. */
@@ -425,9 +439,10 @@ window.__ModuleLoader__.load({
       }
 
       const toggleKeep = () => {
-        const toggle = ctx.workspaces[chat.pinned ? 'unpinSession' : 'pinSession']
-        if (typeof toggle !== 'function') { onError?.(t('pinFailed')); return }
-        void toggle(chat.sessionId)
+        // Call through the service face: `ctx.workspaces` methods bind their
+        // receiver at call time, so pulling one out of the object loses `this`.
+        const request = chat.pinned ? ctx.workspaces.unpinSession(chat.sessionId) : ctx.workspaces.pinSession(chat.sessionId)
+        void Promise.resolve(request)
           .then(() => loadState())
           .catch((failure) => { onError?.(`${t('pinFailed')} ${messageOf(failure)}`) })
       }
@@ -455,13 +470,12 @@ window.__ModuleLoader__.load({
       }
 
       return h('li', { className: 'oc-item', key: chat.sessionId },
-        h('div', { className: 'oc-row' },
+        h('div', { className: chat.pinned ? 'oc-row oc-row-kept' : 'oc-row' },
           h('button', { type: 'button', className: 'oc-open', onClick: open },
             chat.running ? h('span', { className: 'oc-dot', 'aria-hidden': true }) : null,
             h('span', { className: 'oc-name' }, title),
             h('span', { className: 'oc-meta' },
               chat.running ? t('running') : chat.open ? t('openNow') : format(chat.updatedAt))),
-          chat.pinned ? h('span', { className: 'oc-pin', title: t('keptLabel') }, h(Glyph, { size: 13, kind: 'pinFilled' })) : null,
           h('div', { className: 'oc-actions' },
             h('button', {
               type: 'button', className: 'oc-icon-btn', 'aria-label': chat.pinned ? t('unpinLabel') : t('pinLabel'),
@@ -469,12 +483,12 @@ window.__ModuleLoader__.load({
             }, h(Glyph, { size: 14, kind: chat.pinned ? 'pinFilled' : 'pin' })),
             options.length > 0 && !chat.running
               ? h('button', {
-                type: 'button', className: 'oc-icon-btn', 'aria-label': `${t('convert')}: ${title}`,
+                type: 'button', className: 'oc-icon-btn oc-action-extra', 'aria-label': `${t('convert')}: ${title}`,
                 onClick: () => { setConfirmId(null); setDraft({ sessionId: chat.sessionId, workspaceId: options[0].workspaceId }) },
               }, h(Glyph, { size: 14, kind: 'branch' }))
               : null,
             h('button', {
-              type: 'button', className: 'oc-icon-btn oc-icon-btn-danger', 'aria-label': `${t('delete')}: ${title}`,
+              type: 'button', className: 'oc-icon-btn oc-icon-btn-danger oc-action-extra', 'aria-label': `${t('delete')}: ${title}`,
               onClick: () => setConfirmId(chat.sessionId),
             }, h(Glyph, { size: 14, kind: 'trash' })))),
         ownDraft !== null
@@ -716,9 +730,10 @@ window.__ModuleLoader__.load({
         /**
          * Chat mode is the main panel holding one of this plugin's chats. While it
          * is on, three seats of the host chrome are replaced: the sidebar browsing
-         * region, and the hero's workspace and preset pickers. Leaving chat mode
-         * restores all three and drops the chat Workspace registration, so its row
-         * disappears from the ordinary workspace list.
+         * region becomes this plugin's chat list, and the hero's workspace chip and
+         * preset control render nothing, so nothing else can be chosen for a chat.
+         * Leaving chat mode restores all three and drops the chat Workspace
+         * registration, so its row disappears from the ordinary workspace list.
          */
         let chatDirectory
         let occupants = []
@@ -734,9 +749,9 @@ window.__ModuleLoader__.load({
               ctx.slots.register({ name: 'sidebar.workspaces', locale: NS, priority: -10 },
                 (props) => h(ChatSidebar, { ...props, ctx, t, directory: chatDirectory, stateStore, loadState })),
               ctx.slots.register({ name: 'conversation.hero.workspace', locale: NS, priority: -10 },
-                () => h(HeroLabel, { t, kind: 'folder' })),
+                () => h(HeroQuiet)),
               ctx.slots.register({ name: 'conversation.hero.agentPreset', locale: NS, priority: -10 },
-                () => h(HeroLabel, { t, kind: 'bubble' })),
+                () => null),
             ]
           }
           // Covers a page reload that lands in a chat: the Host re-registers the
