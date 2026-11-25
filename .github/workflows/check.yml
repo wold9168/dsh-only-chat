@@ -1,0 +1,40 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check both halves
+        run: |
+          node --check index.js
+          node --check client.js
+          node --check guard.js
+      - name: Validate manifests and locale files
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            for (const file of manifest.files) {
+              if (file.includes('*')) continue;
+              if (!fs.existsSync(file)) throw new Error('declared file missing: ' + file);
+            }
+            for (const locale of ['locale/en.json', 'locale/zh.json']) {
+              const meta = JSON.parse(fs.readFileSync(locale, 'utf8')).meta;
+              if (!meta || typeof meta.title !== 'string' || typeof meta.description !== 'string') {
+                throw new Error('locale meta incomplete: ' + locale);
+              }
+              if (meta.detail !== undefined && !fs.existsSync(meta.detail)) {
+                throw new Error('declared detail document missing: ' + meta.detail);
+              }
+            }
+            const icon = fs.readFileSync('icon.svg', 'utf8');
+            if (!icon.includes('<svg') || icon.length > 256 * 1024) throw new Error('icon.svg is not a usable SVG');
+          "

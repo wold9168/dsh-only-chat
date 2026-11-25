@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Only Chat",
+    "description": "Adds an Only Chat entry to the sidebar. One click starts (or reuses) a chat with any model and opens it in the main panel with the usual composer and model picker — you never choose a workspace. Chats run the only-chat Agent preset: read, search, and web tools only, plus a scope guard that also blocks host-layer tools such as configured MCP servers and working_directory, and the read-only permission preset. So the model can open any readable file but cannot change files, run commands, or use an MCP server. While a chat is open the sidebar shows this plugin's own chat list (keep, convert, delete on hover) and no other workspace; leaving chat mode returns the host workspace browser and removes the Only Chat workspace row, which exists only while chatting. Settings → Only Chat holds the same list, delete-all, the keep-at-most limit (default 20), and Convert to a session, which copies a chat into a workspace as a normal session and deletes the chat; that conversion is one-way. Starting a chat past the limit deletes the least recently active idle chats; a chat that is generating or kept (pinned) is left alone. Disabling the plugin hides the entry and the settings page and leaves existing chat logs in place.",
+    "detail": "docs/DETAIL.md"
+  }
+}
