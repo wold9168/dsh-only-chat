@@ -16,7 +16,6 @@ jobs:
         run: |
           node --check index.js
           node --check client.js
-          node --check guard.js
       - name: Validate manifests and locale files
         run: |
           node -e "

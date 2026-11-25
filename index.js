@@ -1,12 +1,13 @@
 /**
  * dsh-only-chat — Host half.
  *
- * Only Chat keeps workspace-free chats in one directory of its own. Every chat
- * runs the `only-chat` Agent preset (read and search tools, no writer, no
- * shell, plus a scope guard that also blocks host-layer tools such as MCP
- * servers), pins the deployment's `read-only` permission preset, and is retired
- * once the number of kept chats passes `maxChats`. Chat history stays in
- * Harness Session logs — this half keeps no second copy of it.
+ * Only Chat keeps workspace-free chats in one directory of its own. A chat runs
+ * the deployment's own default Agent preset — the same capabilities as an
+ * ordinary session — with read-only layered on top of it: the Session pins the
+ * read-only permission preset, and the agent's scope refuses file writers, MCP
+ * tools, and the profile and package editors. A chat is retired once the number
+ * of kept chats passes `maxChats`. Chat history stays in Harness Session logs —
+ * this half keeps no second copy of it.
  *
  * The browser reaches this half through routes under `/api/dsh-only-chat`,
  * gated to the authenticated browser Peer: only a person at the interface can
@@ -20,9 +21,37 @@ import Schema from '@deepseek-ai/schemastery'
 
 export const name = 'dsh-only-chat'
 
-/** Agent preset id, panel id, settings section id, and route prefix share this name. */
-const PRESET_ID = 'only-chat'
 const API_PREFIX = '/api/dsh-only-chat'
+
+/**
+ * Tools a chat must not run. The chat uses the deployment's own default preset,
+ * so this list is what separates it from a normal session: file writers, profile
+ * and package editors, and the directory mover.
+ */
+const REFUSED_TOOLS = new Set([
+  'write',
+  'edit',
+  'apply_patch',
+  'plugin_manager',
+  'plugin_market',
+  'cordis_run',
+  'cordis_define',
+  'cordis_undefine',
+  'cordis_stop',
+  'working_directory',
+])
+
+/** MCP tool names are `mcp__<server>__<tool>`, and MCP servers run unsandboxed. */
+const MCP_PREFIX = 'mcp__'
+const REFUSAL = 'Only Chat chats are read-only: this tool cannot change files or Harness state here.'
+
+/**
+ * Whether one tool name crosses the read-only line.
+ * @param toolName - a registered tool name.
+ */
+function isRefusedTool(toolName) {
+  return REFUSED_TOOLS.has(toolName) || toolName.startsWith(MCP_PREFIX)
+}
 const ROUTES = new Set(['state', 'open', 'enter', 'exit', 'delete', 'clear', 'convert', 'max-chats'])
 
 /** One teardown step waits this long before the whole delete refuses. */
@@ -77,13 +106,13 @@ export async function apply(ctx, config) {
 
   /**
    * A chat is ours only when its own header says so: this plugin's directory,
-   * this plugin's preset, and not a fork or a subagent of one. That keeps a user
-   * who points `chatDirectory` at an existing project from having ordinary
-   * sessions deleted here.
+   * this plugin's directory and not a fork or a subagent of one. Chats run the
+   * deployment's own default preset, so the directory is what marks ownership;
+   * pointing `chatDirectory` at an existing project cannot make this plugin
+   * delete someone else's sessions.
    */
   const isChatHeader = (header) => header !== undefined
     && header.cwd === chatDirectory
-    && header.agentPreset === PRESET_ID
     && header.parentSession === undefined
     && header.origin !== 'subagent'
 
@@ -262,31 +291,14 @@ export async function apply(ctx, config) {
   }
 
   /**
-   * Record the Only Chat preset on a chat Session. Creating a Session writes the
-   * preset into its header, but the composer reads the recorded selection, so
-   * without this the chat would display and run the deployment's default preset.
-   */
-  const recordPreset = async (sessionId) => {
-    const presets = ctx.get('agentPresets')
-    const agent = ctx.agents.get(sessionId)
-    if (presets === undefined || agent?.session === undefined) return
-    if (presets.presetForSession(agent.session) === PRESET_ID) return
-    await presets.select(agent, PRESET_ID)
-  }
-
-  /**
    * Give the caller a chat to write into: reuse the empty one, else start a new
    * one and retire whatever the limit now exceeds.
    */
   const openChat = async () => {
     const workspace = await ensureMembership()
     const reusable = findReusable()
-    if (reusable !== undefined) {
-      await recordPreset(reusable)
-      return { sessionId: reusable, reused: true, removed: [] }
-    }
-    const created = await ctx.sessionController.create({ workspaceId: workspace.id, agentPreset: PRESET_ID })
-    await recordPreset(created.sessionId)
+    if (reusable !== undefined) return { sessionId: reusable, reused: true, removed: [] }
+    const created = await ctx.sessionController.create({ workspaceId: workspace.id })
     const removed = await prune(created.sessionId)
     return { sessionId: created.sessionId, reused: false, removed }
   }
@@ -362,19 +374,34 @@ export async function apply(ctx, config) {
   }
 
   /**
-   * Pin the read-only permission preset on one chat. Permission presets pins a
+   * Make one chat read-only on top of the preset it runs. The Session pins the
+   * deployment's read-only permission preset, and the agent's own scope refuses
+   * the tools that would write outside that sandbox. Permission presets pins a
    * fresh Session from its own `agent/created` listener registered with
-   * `prepend: true`, so this runs after that pin and the chat's read-only mode
-   * is the last value in the log.
+   * `prepend: true`, so this runs after that pin and read-only is the last value
+   * in the log.
    */
-  const enforceReadOnly = (session) => {
+  const applyReadOnly = (agent) => {
+    const session = agent.session
     const permissions = ctx.get('permissionPresets')
     const readOnly = permissions?.catalog().options.find(option => option.value === 'read-only')
-    if (readOnly !== undefined) {
-      permissions.set(session, 'read-only')
-      return
+    if (readOnly !== undefined) permissions.set(session, 'read-only')
+    else if (ctx.sandboxPolicy.overrideOf(session) !== 'read-only') session.append('sandbox/mode', { mode: 'read-only' })
+
+    // `restrict` removes the registered ones from the catalog; the guard is the
+    // part that holds for a tool that registers after this point, such as an MCP
+    // server connecting later.
+    const tools = agent.ctx?.tools
+    if (tools === undefined) return
+    const registered = ctx.tools.definitions().map((definition) => definition.name).filter(isRefusedTool)
+    if (registered.length > 0) {
+      try {
+        tools.restrict({ deny: registered })
+      } catch {
+        // A scope that cannot restrict still gets the guard below.
+      }
     }
-    if (ctx.sandboxPolicy.overrideOf(session) !== 'read-only') session.append('sandbox/mode', { mode: 'read-only' })
+    tools.guard((execution) => (isRefusedTool(execution.name) ? REFUSAL : undefined))
   }
 
   /**
@@ -390,45 +417,15 @@ export async function apply(ctx, config) {
   }
 
   /**
-   * Account one specific chat to the chat Workspace and record its preset, so a
-   * chat opened from Settings behaves like one started from the sidebar entry.
+   * Account one specific chat to the chat Workspace, so a chat opened from the
+   * Settings page behaves like one started from the sidebar entry.
    */
   const enterChat = async (sessionId) => {
     assertSessionId(sessionId)
     const header = ctx.sessions.get(sessionId)?.header ?? (await ctx.sessionPersistence.stat(sessionId))?.header
     if (!isChatHeader(header)) throw new OnlyChatError('This chat is not an Only Chat chat.')
     await ensureMembership()
-    await recordPreset(sessionId)
     return { sessionId }
-  }
-
-  /**
-   * Keep the preset and the directory paired. Only Chat runs only inside
-   * `chatDirectory`, and a Session there only runs Only Chat: the composer's
-   * preset selector is global, so a user could otherwise start an Only Chat
-   * conversation inside an ordinary workspace, or an ordinary conversation
-   * inside the chat Workspace while it is registered.
-   * @returns true when the pairing had to be repaired.
-   */
-  const enforcePairing = async (session) => {
-    const presets = ctx.get('agentPresets')
-    const agent = ctx.agents.get(session.id)
-    if (presets === undefined || agent?.session === undefined) return false
-    const selected = presets.presetForSession(session)
-    const inChatDirectory = session.header.cwd === chatDirectory
-    if (inChatDirectory && (selected === null || selected !== PRESET_ID)) {
-      await presets.select(agent, PRESET_ID).catch(() => undefined)
-      ctx.logger.warn(`only-chat: "${session.id}" runs in the chat directory, so it was set back to the Only Chat preset`)
-      return true
-    }
-    if (!inChatDirectory && selected === PRESET_ID) {
-      const fallback = await presets.resolve().catch(() => undefined)
-      if (fallback?.id === undefined) return false
-      await presets.select(agent, fallback.id).catch(() => undefined)
-      ctx.logger.warn(`only-chat: "${session.id}" is not in the chat directory, so its Only Chat preset was reverted`)
-      return true
-    }
-    return false
   }
 
   const api = {
@@ -443,21 +440,13 @@ export async function apply(ctx, config) {
   }), 'only-chat: bridge routes')
 
   ctx.effect(() => ctx.on('agent/created', ({ agent }) => {
-    if (agent.session === undefined) return
+    if (agent.session === undefined || !isChatHeader(agent.session.header)) return
     try {
-      if (isChatHeader(agent.session.header)) enforceReadOnly(agent.session)
-      void enforcePairing(agent.session).catch(() => undefined)
+      applyReadOnly(agent)
     } catch (error) {
-      ctx.logger.warn(`only-chat: could not pin "${agent.id}": ${messageOf(error)}`)
+      ctx.logger.warn(`only-chat: could not make "${agent.id}" read-only: ${messageOf(error)}`)
     }
-  }, { global: true }), 'only-chat: read-only and paired preset')
-
-  // The composer can change a blank Session's preset. That is the one way a
-  // mismatched pair appears, so it is repaired as it is logged.
-  ctx.effect(() => ctx.on('session/event', (session, event) => {
-    if (event.type !== 'agent-preset/selected') return
-    void enforcePairing(session).catch(() => undefined)
-  }, { global: true }), 'only-chat: preset pairing')
+  }, { global: true }), 'only-chat: read-only chats')
 
   ctx.effect(() => ctx.on('session/created', (session) => {
     if (!isChatHeader(session.header)) return
@@ -497,7 +486,6 @@ async function route(ctx, api, req, res) {
       sendJson(res, 200, {
         chatDirectory: api.chatDirectory,
         maxChats: api.maxChats,
-        agentPreset: PRESET_ID,
         chats,
         count: chats.length,
       })

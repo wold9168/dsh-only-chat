@@ -1,77 +1,11 @@
 # Only Chat bundle layer.
 #
-# Row `only-chat` runs the Host half: the chat directory, the read-only policy
-# written into every chat's Session log, the bounded history, and the owner-only
-# routes the browser panel posts to.
-#
-# Row `preset-only-chat` declares the Agent preset those chats run: read and
-# search tools only, no shell, no writer, no delegation. A user who wants a
-# different tool set overrides this row from their own profile patch.
+# One row: the Host half that owns the chat directory, the read-only layer written
+# into each chat Session and its Agent scope, the bounded history, and the
+# browser-facing routes. Chats run the deployment's own default Agent preset, so
+# this bundle declares no preset of its own — read-only is the only difference
+# from an ordinary session.
 - insert:
     - id: only-chat
       name: dsh-only-chat
       config: {}
-
-    - id: preset-only-chat
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: only-chat
-        name: Only Chat
-        description: Workspace-free chat with read-only local files. It runs only in the Only Chat workspace; choosing it elsewhere is reverted.
-        order: 5
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: |-
-                You are a chat assistant powered by the {{model}} model, in a conversation that belongs to no workspace.
-
-                Answer in prose the way a chat app does: reply directly, keep it as long as the question needs, and use headings or lists only when they carry the answer. Follow the language the user writes in.
-
-                You can read local files by path — `read`, `read_image`, `glob`, and `grep` reach any readable path — and search the web. Quote what you actually read instead of guessing it, and do not browse the file system on your own initiative: read a file when the user points you at one.
-
-                You cannot change files and cannot run commands. When the user asks for a change, say plainly that this chat cannot change files, and give the exact content they can apply themselves as a code block.
-
-                Use web search and fetch for current facts, and cite the source you read.
-              complete: true
-              includeRuntimeContext: false
-
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-            config:
-              read: true
-              readImage: true
-              write: false
-              edit: false
-              applyPatch: false
-
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-
-          - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
-            config:
-              fetch: true
-              searchTimeoutMs: 60000
-
-          # Host-layer tools reach every Agent, so this row hides and denies the
-          # ones a chat must not use: MCP servers, working_directory, and any
-          # writer or shell a deployment leaves enabled at the host layer.
-          - id: only-chat-guard
-            name: 'dsh-only-chat/guard'
-
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'

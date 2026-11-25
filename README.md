@@ -11,19 +11,21 @@ with any model, with no workspace to pick — the way a model vendor's web app b
 it in the main panel with the usual composer, model picker, and message actions. Clicking it again
 reuses the empty chat instead of stacking up blank ones.
 
-**Read-only over your files.** Those chats run the `only-chat` Agent preset:
+**Same preset, read-only.** A chat runs the deployment's own default Agent
+preset — the same capabilities as an ordinary session, including skills, commands, jobs, schedules,
+goals, planning, compaction, subagents, workflows, web, and office tools. What differs is one thing:
+the chat cannot change your machine.
 
-- `read`, `read_image`, `glob`, `grep`, `web_search`, `web_fetch`, and the current time.
-- No `write`, no `edit`, no `apply_patch`, no shell, no terminals, no subagents or workflows.
-- Host-layer tools are hidden from the chat's scope and denied at execution time by
-  `dsh-only-chat/guard`, so configured MCP servers and `working_directory` cannot be used from a chat
-  either.
 - The Session pins the deployment's `read-only` permission preset, so the composer shows the chat as
-  read-only and anything consulting the sandbox policy sees read-only too.
+  read-only and the sandbox refuses any file change a command attempts.
+- `write`, `edit`, and `apply_patch` are refused, along with MCP tools (`mcp__…`), the profile editors
+  (`plugin_manager`, `plugin_market`), the package runner (`cordis_run`, `cordis_define`, …), and
+  `working_directory`. These are refused at execution time in the chat's own Agent scope, so a tool
+  that registers later is refused too. Writers still appear in the catalog because the preset registers
+  them; calling one returns a refusal that says the chat is read-only.
 
 Read tools reach any path the Harness can read — including files under your home directory. That is
-deliberate: it is what makes "read this file for me" work with no workspace. Nothing in these chats
-can change a file or run a command.
+deliberate: it is what makes "read this file for me" work with no workspace.
 
 **Chat mode has its own list.** While a chat is open, the sidebar's browsing region is this plugin's
 flat chat list — the same rows the host uses (title, relative time, a running dot, hover actions): keep
@@ -87,12 +89,12 @@ Requires a web-served profile: the browser half declares `dsh.client.platform: "
 | `index.js` | Host half: the chat directory, ownership checks, the read-only permission pin, the bounded history, conversion, and routes under `/api/dsh-only-chat`. |
 | `guard.js` | Preset-scoped tool policy: hides host-layer tools from a chat's scope and denies anything outside the read-only allow-list at execution time. |
 | `client.js` | Browser half: the `sidebar.panellist` entry, the `main` panel that starts the chat, and the `settings.section` page. Plain JavaScript plus React from the page's module table. |
-| `cordis.patch.yml` | Bundle layer: the plugin row plus the `only-chat` Agent preset declaration. |
+| `cordis.patch.yml` | Bundle layer: the one plugin row. No preset is declared — chats run yours. |
 
-Chats are ordinary Harness Sessions whose header names this plugin's directory and preset, so history
-is never copied: the Settings list reads the shared Session catalog and filters it. Ownership requires
-all three of that directory, this preset, and no parent session — pointing `chatDirectory` at an
-existing project cannot make this plugin delete someone else's sessions.
+Chats are ordinary Harness Sessions whose header names this plugin's directory, so history is never
+copied: the Settings list reads the shared Session catalog and filters it. Ownership requires that
+directory and no parent session — pointing `chatDirectory` at an existing project cannot make this
+plugin delete someone else's sessions.
 
 One thing you will notice: chats need a Workspace. The host conversation surface treats an empty
 Session that belongs to no Workspace as "choose a workspace first" — the composer stays inert until you
@@ -109,10 +111,9 @@ Entering either mode is a click: the sidebar entry re-registers the Workspace, r
 it, and opens one; **Back to workspaces** opens your most recently active ordinary session.
 
 While a chat is open, the New Session hero's workspace chip and preset selector render nothing, so the
-interface offers no other workspace and no other preset. The pairing is also
-enforced on the Host: a Session in the chat directory is put back on the Only Chat preset, and a Session
-that selects the Only Chat preset outside that directory is reverted to the deployment default. The
-Settings list reads the Host's own chat list, so it shows exactly what it can delete.
+interface offers no other workspace to pick. The read-only layer is applied on the Host to every Agent
+whose Session sits in the chat directory, which covers subagents a chat spawns as well. The Settings
+list reads the Host's own chat list, so it shows exactly what it can delete.
 
 Routes are gated twice: the composition's own trust fence, then the authenticated browser Peer. An API
 token client gets `403`; only a person at the interface can start, convert, or delete a chat.
@@ -123,9 +124,9 @@ token client gets `403`; only a person at the interface can start, convert, or d
 pnpm run check   # node --check on the three source files; no build step
 ```
 
-Both halves ship as written — there is no compile step. To try a different tool set, override the
-preset row from your own profile patch: copy `cordis.patch.yml`'s `preset-only-chat` block and edit
-`config.plugins`. If you add a tool the guard does not know, add its name to `ALLOWED` in `guard.js`.
+Both halves ship as written — there is no compile step. Chats run your default preset, so editing that
+preset (Settings → Agent presets) changes what a chat can do; the read-only refusals stay on top. To
+refuse more tools, add their names to `REFUSED_TOOLS` in `index.js`.
 
 ## Known limits
 
@@ -137,6 +138,8 @@ preset row from your own profile patch: copy `cordis.patch.yml`'s `preset-only-c
   the limit count; it is still a Session on disk until the limit retires it or you start another chat.
 - Chats cannot be archived from this plugin: there is no un-archiving surface here, and the host row
   buttons sit in child slots the plugin cannot re-declare.
+- Because a chat runs your default preset, tools that write are still listed to the model and refuse
+  when called. Remove the `tool-fs` writers from your preset if you want them gone from the catalog.
 - Conversion copies the log into a new session: the original chat is deleted and the new session starts
   fresh in the workspace, so it is a new Session identity, not a rename.
 - Projection-checkpoint cleanup is best-effort; a small cached record for a deleted chat may remain.
@@ -149,9 +152,11 @@ preset row from your own profile patch: copy `cordis.patch.yml`'s `preset-only-c
 安装启用后，侧边栏会出现「仅聊天」入口。点一下立刻开始一段不绑定工作区的对话（点第二次会复用还没写过内容
 的空聊天），聊天在主面板打开，沿用宿主的输入框与模型选择器。
 
-这些聊天运行 `only-chat` 预设：只有读取、检索和网页工具，没有编辑器、命令行和子代理；插件还会在聊天作用域里
-隐藏并拒绝宿主层工具，所以 MCP 服务器和 `working_directory` 也用不了；权限固定为只读。模型可以读取任意可读
-路径（包括主目录下的文件），但不会改动文件，也不会执行命令。
+这些聊天运行你自己的默认 Agent 预设，能力和普通会话一致（技能、命令、后台任务、计划、压缩、子代理、网页、Office
+工具都在），唯一区别是只读：会话固定使用部署的 read-only 权限预设，沙箱会拒绝命令对文件的任何改动；`write`、
+`edit`、`apply_patch`、MCP 工具（`mcp__…`）、profile 编辑器（`plugin_manager`、`plugin_market`）、包运行器
+（`cordis_run` 等）和 `working_directory` 会在聊天自己的 Agent 作用域里被执行前拒绝，因此稍后才连上来的 MCP
+工具也一样被拒。写文件类的工具仍会出现在目录里（那是预设注册的），调用时会得到一句「本聊天只读」。
 
 聊天期间侧边栏的浏览区由插件接管，是一份与宿主会话行同形的聊天列表（标题、相对时间、生成中的小圆点，
 悬停出现「保留 / 转为正常会话 / 删除」），点行就打开那条聊天；底部是「返回工作区」。还没说过话的聊天不会

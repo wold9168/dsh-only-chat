@@ -21,8 +21,6 @@ window.__ModuleLoader__.load({
     const PANEL_ID = 'only-chat'
     const SECTION_ID = 'only-chat'
     const NS = 'only-chat'
-    /** The Agent preset the Host half runs for every chat. */
-    const PRESET_ID = 'only-chat'
     const API_PATH = 'api/dsh-only-chat'
     const maxChatsLimit = 1000
     /** Relative times are re-rendered on this interval so an open page does not freeze. */
@@ -38,7 +36,7 @@ window.__ModuleLoader__.load({
         modeHeading: 'Only Chat',
         newChat: 'New chat',
         backToWorkspaces: 'Back to workspaces',
-        modeHint: 'Read-only over your files. History and the kept count sit under Settings → Only Chat.',
+        modeHint: 'Your default preset, read-only. History and the kept count sit under Settings → Only Chat.',
         listHeading: 'Chats kept here',
         empty: 'No chats yet. Click Only Chat in the sidebar to start one.',
         noWritten: 'No chat has been written in yet.',
@@ -68,7 +66,7 @@ window.__ModuleLoader__.load({
         keptNote: 'A chat with the pin icon is never retired by the limit, so kept chats can put the total above it.',
         willPruneLead: 'Starting the next chat deletes',
         willPruneTail: 'chats.',
-        privacy: 'Read tools in these chats can open any path the Harness can read, including files under your home directory. They cannot change files, run commands, or use configured MCP servers.',
+        privacy: 'These chats run your default preset, but read-only: file writers, MCP tools, profile editors, and the package runner are refused, and the sandbox blocks file changes a command attempts. Read tools still reach any readable path, including files under your home directory.',
         workspaceNote: 'While a chat is open the sidebar shows only Only Chat; leaving chat mode returns your other workspaces, and the Only Chat workspace exists only during a chat.',
         directoryLabel: 'Chat folder',
         summary: 'kept',
@@ -87,7 +85,7 @@ window.__ModuleLoader__.load({
         modeHeading: '仅聊天',
         newChat: '新聊天',
         backToWorkspaces: '返回工作区',
-        modeHint: '对本地文件只读。聊天列表和保留数量在「设置 → 仅聊天」里。',
+        modeHint: '运行你的默认预设，但只读。聊天列表和保留数量在「设置 → 仅聊天」里。',
         listHeading: '保留的聊天',
         empty: '还没有聊天。点侧边栏的「仅聊天」开始。',
         noWritten: '还没有聊天说过话。',
@@ -117,7 +115,7 @@ window.__ModuleLoader__.load({
         keptNote: '带图钉的聊天不会被数量上限删除，所以被保留的聊天可以让总数超过上限。',
         willPruneLead: '下一次新建聊天会删除',
         willPruneTail: '个聊天。',
-        privacy: '这些聊天里的读取工具可以打开 Harness 能读取的任意路径，包括主目录下的文件。它们不会改动文件、不会执行命令，也不会使用你配置的 MCP 服务器。',
+        privacy: '这些聊天运行你的默认预设，但只读：写文件类工具、MCP 服务器、profile 编辑器和包运行器会被拒绝，沙箱也会拦住命令对文件的改动。读取工具可以打开 Harness 能读取的任意路径，包括主目录下的文件。',
         workspaceNote: '打开聊天时侧边栏只显示仅聊天；退出后你的其他工作区会回来，而「Only Chat」这个工作区只在聊天期间存在。',
         directoryLabel: '聊天目录',
         summary: '已保留',
@@ -345,15 +343,14 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
     }
 
     /**
-     * Whether a catalog row is one of this plugin's chats. The recorded preset
-     * decides; the chat directory is a fallback for a deployment whose list rows
-     * carry no preset projection.
+     * Whether a catalog row is one of this plugin's chats: a Session of the chat
+     * directory that is not a fork or a subagent of one. Chats run the
+     * deployment's own default preset, so the directory is the only marker.
      */
     function isChatRow(row, chatDirectory) {
-      if (row === undefined) return false
+      if (row === undefined || chatDirectory === undefined) return false
       if (row.parentId !== undefined || row.origin === 'subagent') return false
-      return row.projectionValues?.agentPreset === PRESET_ID
-        || (chatDirectory !== undefined && row.cwd === chatDirectory)
+      return row.cwd === chatDirectory
     }
 
     /** The chat currently shown in the main panel, which is what defines chat mode. */
