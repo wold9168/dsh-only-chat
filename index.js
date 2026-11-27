@@ -144,7 +144,10 @@ export async function apply(ctx, config) {
     return session !== undefined && ctx.agents.turnBoundaryOf(session).lastTurn === 0
   }
 
-  /** Every chat this plugin owns, minus archived ones, most recently active first. */
+  /**
+   * Every chat this plugin owns, minus archived ones: kept (pinned) chats first,
+   * then the most recently active, which is the order both lists render.
+   */
   const listChats = async () => {
     const headers = new Map()
     for (const session of ctx.sessions.list()) if (isChatHeader(session.header)) headers.set(session.id, session.header)
@@ -163,7 +166,8 @@ export async function apply(ctx, config) {
         blank: isBlank(header.id),
       })
     }
-    return chats.sort((left, right) => right.activity - left.activity)
+    return chats.sort((left, right) =>
+      (left.pinned === right.pinned ? 0 : left.pinned ? -1 : 1) || right.activity - left.activity)
   }
 
   /** True while the chat's Agent sits inside a turn. */

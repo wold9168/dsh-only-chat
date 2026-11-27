@@ -28,8 +28,10 @@ Read tools reach any path the Harness can read — including files under your ho
 deliberate: it is what makes "read this file for me" work with no workspace.
 
 **Chat mode has its own list.** While a chat is open, the sidebar's browsing region is this plugin's
-flat chat list — the same rows the host uses (title, relative time, a running dot, hover actions): keep
-(pin), convert to a session, delete. Clicking a row opens that chat. A chat you have not written in yet
+flat chat list — the same rows the host uses (title, relative time, a running dot, hover actions), drawn
+against the sidebar's one left gutter so the rows use the full width: keep
+(pin — sorts the chat to the top of both lists and exempts it from the limit), convert to a session,
+delete. Clicking a row opens that chat. A chat you have not written in yet
 is not listed: it is the draft you are looking at, and it still counts toward the limit. **Settings →
 Only Chat** shows the same list plus delete-all, the chat folder, and the `maxChats` limit; the kept
 count there includes the draft.
@@ -102,13 +104,14 @@ pick one. So the plugin registers a Workspace over its own chat directory while 
 drops that registration when you leave. That gives two separate modes:
 
 - **Only Chat mode** — the main panel holds one of the plugin's chats. The sidebar's browsing region is
-  replaced by this plugin's chat list (header with New chat, flat chat rows, Back to workspaces), so no
-  other workspace or session is visible there.
+  replaced by this plugin's chat list (header with New chat, flat chat rows), so no other workspace or
+  session is visible there.
 - **Normal mode** — the host workspace browser comes back, and the Only Chat row is gone from it because
   its registration was removed. Chat logs stay on disk and stay listed under Settings → Only Chat.
 
-Entering either mode is a click: the sidebar entry re-registers the Workspace, re-accounts the chats to
-it, and opens one; **Back to workspaces** opens your most recently active ordinary session.
+The sidebar entry is the switch: clicking it in normal mode re-registers the Workspace, re-accounts the
+chats to it, and opens one; while a chat is open the same entry reads **Back to workspaces** and opens
+your most recently active ordinary session instead.
 
 While a chat is open, the New Session hero's workspace chip and preset selector render nothing, so the
 interface offers no other workspace to pick. The read-only layer is applied on the Host to every Agent
@@ -136,6 +139,8 @@ refuse more tools, add their names to `REFUSED_TOOLS` in `index.js`.
   generating cancels it. A kept (pinned) chat is exempt from the limit too, so the total can exceed it.
 - A chat with no messages yet is kept out of both lists, so an abandoned draft is only visible through
   the limit count; it is still a Session on disk until the limit retires it or you start another chat.
+  Being "no messages yet" is only known while the Session is live, so a retired empty chat can show up as
+  a row named `New chat`.
 - Chats cannot be archived from this plugin: there is no un-archiving surface here, and the host row
   buttons sit in child slots the plugin cannot re-declare.
 - Because a chat runs your default preset, tools that write are still listed to the model and refuse
@@ -143,6 +148,8 @@ refuse more tools, add their names to `REFUSED_TOOLS` in `index.js`.
 - Conversion copies the log into a new session: the original chat is deleted and the new session starts
   fresh in the workspace, so it is a new Session identity, not a rename.
 - Projection-checkpoint cleanup is best-effort; a small cached record for a deleted chat may remain.
+- The entry cannot go back when nothing else exists: with no ordinary session and no other workspace it
+  says so instead of starting a chat in the chat directory.
 - Changing `chatDirectory` leaves the old directory's logs on disk; clean them yourself.
 - Operations are panel-only on purpose. There is no agent tool for starting or deleting chats, so an
   agent cannot erase your history.
@@ -159,13 +166,13 @@ refuse more tools, add their names to `REFUSED_TOOLS` in `index.js`.
 工具也一样被拒。写文件类的工具仍会出现在目录里（那是预设注册的），调用时会得到一句「本聊天只读」。
 
 聊天期间侧边栏的浏览区由插件接管，是一份与宿主会话行同形的聊天列表（标题、相对时间、生成中的小圆点，
-悬停出现「保留 / 转为正常会话 / 删除」），点行就打开那条聊天；底部是「返回工作区」。还没说过话的聊天不会
-出现在列表里（那就是你正在看的草稿），但它仍然计入保留数量。删除当前打开的聊天会把主面板切到下一条聊天，
+悬停出现「保留 / 转为正常会话 / 删除」），点行就打开那条聊天。还没说过话的聊天不会
+出现在列表里（那就是你正在看的草稿），但它仍然计入保留数量；「还没说过话」只在会话活着时能判断，所以被闲置的空聊天可能作为一行「新聊天」出现。删除当前打开的聊天会把主面板切到下一条聊天，
 没有别的聊天就回到你最近使用的普通会话。「设置 → 仅聊天」用的是同一套行渲染，另外还有删除全部、聊天目录和
 保留数量上限。
 
-默认最多保留 20 个：超出后新建聊天会删除最久没动的空闲聊天，正在生成的聊天会保留；带图钉（保留）的聊天不会被
-上限删除，所以被保留的聊天可以让总数超过上限。调小上限本身不会删除，会在下一次新建时生效，页面上会提示会删掉
+默认最多保留 20 个：超出后新建聊天会删除最久没动的空闲聊天，正在生成的聊天会保留；带图钉（保留）的聊天排在两份列表的最前面，
+也不会被上限删除，所以被保留的聊天可以让总数超过上限。调小上限本身不会删除，会在下一次新建时生效，页面上会提示会删掉
 几个。保存上限会写入你的 profile patch。聊天不能归档：这里没有取消归档的入口，而宿主会话行上的归档/置顶按钮位于
 插件不能重复声明的子插槽里，所以这三个控件由插件自己画在自己的列表里。
 

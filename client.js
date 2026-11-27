@@ -36,7 +36,9 @@ window.__ModuleLoader__.load({
         modeHeading: 'Only Chat',
         newChat: 'New chat',
         backToWorkspaces: 'Back to workspaces',
-        modeHint: 'Your default preset, read-only. History and the kept count sit under Settings → Only Chat.',
+        switching: 'Returning to your workspaces…',
+        nothingToReturn: 'There is no other session or workspace to go back to.',
+        modeHint: 'Read-only. The entry above is the way back to your workspaces; history and the kept count sit under Settings → Only Chat.',
         listHeading: 'Chats kept here',
         empty: 'No chats yet. Click Only Chat in the sidebar to start one.',
         noWritten: 'No chat has been written in yet.',
@@ -85,7 +87,9 @@ window.__ModuleLoader__.load({
         modeHeading: '仅聊天',
         newChat: '新聊天',
         backToWorkspaces: '返回工作区',
-        modeHint: '运行你的默认预设，但只读。聊天列表和保留数量在「设置 → 仅聊天」里。',
+        switching: '正在返回工作区…',
+        nothingToReturn: '没有别处的会话或工作区可返回。',
+        modeHint: '只读。上面的入口就是返回工作区；聊天列表和保留数量在「设置 → 仅聊天」里。',
         listHeading: '保留的聊天',
         empty: '还没有聊天。点侧边栏的「仅聊天」开始。',
         noWritten: '还没有聊天说过话。',
@@ -133,17 +137,16 @@ window.__ModuleLoader__.load({
      * that the hover actions replace.
      */
     const css = `
-.oc-wrap,.oc-side,.oc-item,.oc-row,.oc-open,.oc-inline,.oc-side-head,.oc-side-actions,.oc-field{box-sizing:border-box}
+.oc-wrap,.oc-side,.oc-side-list,.oc-item,.oc-row,.oc-open,.oc-inline,.oc-side-head,.oc-side-actions,.oc-field{box-sizing:border-box}
 .oc-wrap{color:var(--dsw-alias-label-primary);flex-direction:column;gap:16px;display:flex}
 .oc-start{color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:12px;align-items:center;gap:10px;padding:14px 16px;font-size:13px;display:flex}
 .oc-title{margin:0;font-size:20px;line-height:28px;font-weight:500}
 .oc-label{margin:0;color:var(--dsw-alias-label-primary);font-size:14px;line-height:20px;font-weight:550}
 .oc-sub{margin:4px 0 0;color:var(--dsw-alias-label-secondary);font-size:12.5px;line-height:1.6}
-.oc-list{margin:0;padding:0;list-style:none;flex-direction:column;gap:2px;display:flex}
 .oc-item{flex-direction:column;gap:2px;display:flex}
-.oc-row{border-radius:10px;align-items:center;gap:2px;height:32px;padding:0 4px;display:flex}
+.oc-row{border-radius:10px;align-items:center;gap:2px;height:32px;padding:0 4px 0 0;display:flex}
 @media (hover:hover){.oc-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}}
-.oc-open{cursor:pointer;font:inherit;color:inherit;text-align:left;background:0 0;border:0;border-radius:8px;flex:1;min-width:0;height:32px;align-items:center;gap:8px;padding:0 7px;display:flex}
+.oc-open{cursor:pointer;font:inherit;color:inherit;text-align:left;background:0 0;border:0;border-radius:8px;flex:1;min-width:0;height:32px;align-items:center;gap:8px;padding:0 6px 0 0;display:flex}
 .oc-open:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)));outline-offset:-1px}
 .oc-dot{background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));flex:none;border-radius:50%;width:7px;height:7px}
 .oc-name{flex:1;min-width:0;font-size:13.5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -174,7 +177,7 @@ window.__ModuleLoader__.load({
 .oc-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
 .oc-icon-btn-danger:hover{color:var(--dsw-alias-state-error-primary)}
 .oc-icon-btn:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)));outline-offset:-1px}
-.oc-inline{align-items:center;gap:8px;padding:2px 8px 6px;display:flex;flex-wrap:wrap}
+.oc-inline{align-items:center;gap:8px;padding:2px 4px 6px 0;display:flex;flex-wrap:wrap}
 .oc-inline-text{color:var(--dsw-alias-label-secondary);font-size:12px}
 .oc-desc{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.6}
 .oc-alert{margin:0;color:var(--dsw-alias-state-error-primary);font-size:12.5px}
@@ -184,13 +187,16 @@ window.__ModuleLoader__.load({
 .oc-input{width:78px;font-variant-numeric:tabular-nums}
 .oc-select:focus-visible,.oc-input:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)));outline-offset:1px}
 .oc-divider{border-top:1px solid var(--dsw-alias-border-l1);margin:2px 0}
-.oc-side{color:var(--dsw-alias-label-primary);gap:6px;padding:8px 6px 10px;font-size:13px;display:flex;flex-direction:column;min-height:0}
-.oc-side-head{color:var(--dsw-alias-label-secondary);justify-content:space-between;align-items:center;gap:7px;padding:0 6px;font-size:12.5px;display:flex}
+/* The region that hosts our sidebar registrant has no left padding, so the only
+ * inset here is our own — and that one is zero, which puts the rows and the heading
+ * on the same edge as the sidebar border plus its 3px paint inset. */
+.oc-side{color:var(--dsw-alias-label-primary);gap:6px;padding:8px 0 10px;font-size:13px;display:flex;flex-direction:column;min-height:0}
+.oc-side-head{color:var(--dsw-alias-label-secondary);justify-content:space-between;align-items:center;gap:7px;font-size:12.5px;display:flex}
 .oc-side-new{cursor:pointer;font:inherit;color:var(--dsw-alias-label-secondary);background:0 0;border:0;border-radius:8px;align-items:center;gap:5px;height:26px;padding:0 8px;font-size:12.5px;display:inline-flex}
 .oc-side-new:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
 .oc-side-new:focus-visible{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)));outline-offset:-1px}
-.oc-side-list{overflow:auto;flex-direction:column;gap:2px;display:flex}
-.oc-side-foot{padding:2px 6px 0}
+.oc-side-list{margin:0;padding:0;list-style:none;overflow:auto;flex-direction:column;gap:2px;display:flex}
+.oc-side-foot{margin:0;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5;padding:2px 0 0}
 .oc-side-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5}
 @media (pointer:coarse){.oc-input{font-size:16px}}
 `
@@ -278,6 +284,11 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           h('path', { d: 'M6 7l1 12h10l1-12' }),
           h('path', { d: 'M10.5 11v5M13.5 11v5' }))
       }
+      if (kind === 'back') {
+        return h('svg', svg,
+          h('path', { d: 'M19 12H5' }),
+          h('path', { d: 'M11 6l-6 6 6 6' }))
+      }
       if (kind === 'branch') {
         return h('svg', svg,
           h('circle', { cx: 6, cy: 5.5, r: 2 }),
@@ -312,7 +323,8 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
       return h('span', { className: 'oc-marker', 'aria-hidden': true }, h('style', null, heroCss))
     }
 
-    /** Subscribe to one observable snapshot store without losing its receiver. */
+    /** Subscribe to one observable snapshot store without losing its receiver:
+     * some stores expose prototype methods, so they must be called through the object. */
     function useSnapshot(store) {
       return React.useSyncExternalStore(
         (listener) => store.subscribe(listener),
@@ -403,7 +415,11 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
       return goToNormalSession(ctx, chatDirectory)
     }
 
-    /** Leave chat mode towards an ordinary session, creating one when none exists. */
+    /**
+     * Leave chat mode towards an ordinary session or another workspace. Nothing is
+     * created here: a fresh session with no other workspace would land back in the
+     * chat directory, so this reports when there is nowhere to go.
+     */
     function goToNormalSession(ctx, chatDirectory) {
       const snapshot = ctx.sessions.list.getSnapshot()
       const normal = snapshot.ids
@@ -412,8 +428,8 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
         .sort((left, right) => right.updatedAt - left.updatedAt)[0]
       if (normal !== undefined) { ctx.uiWorkspace.openSession(normal.id); return true }
       const others = ctx.workspaces.list.getSnapshot().items.filter((workspace) => workspace.path !== chatDirectory)
-      if (others.length > 0) { void ctx.uiWorkspace.openWorkspace(others[0].workspaceId).catch(() => undefined); return true }
-      ctx.uiWorkspace.startSession()
+      if (others.length === 0) return false
+      void ctx.uiWorkspace.openWorkspace(others[0].workspaceId).catch(() => undefined)
       return true
     }
 
@@ -430,8 +446,8 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
 
       const open = () => {
         void call('enter', { sessionId: chat.sessionId }, t)
-          .catch((failure) => { onError?.(messageOf(failure)) })
           .then(() => { ctx.uiWorkspace.openSession(chat.sessionId) })
+          .catch((failure) => { onError?.(messageOf(failure)) })
         props.closeSurface?.()
       }
 
@@ -450,7 +466,7 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           .then(async () => {
             const value = await loadState()
             // The main panel may still point at the chat that is gone, so move it.
-            if (chat.open) nextChat(ctx, value, chatDirectory, chat.sessionId)
+            if (chat.open && !nextChat(ctx, value, chatDirectory, chat.sessionId)) onError?.(t('nothingToReturn'))
           })
           .catch((failure) => { onError?.(`${t('deleteFailed')} ${messageOf(failure)}`) })
       }
@@ -566,8 +582,6 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           .catch((failure) => setNotice(messageOf(failure)))
       }
 
-      const back = () => goToNormalSession(ctx, directory)
-
       if (props.wide === false) {
         return h('div', { className: 'oc-side' }, h('style', null, css),
           h('button', {
@@ -583,16 +597,19 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
             h(Glyph, { size: 14, kind: 'plus' }), t('newChat'))),
         notice !== null ? h('p', { role: 'alert', className: 'oc-side-hint' }, notice) : null,
         h(ChatList, { ctx, t, state, loadState, onError: setNotice }),
-        h('div', { className: 'oc-side-foot' },
-          h('button', { type: 'button', className: 'oc-btn', onClick: back }, t('backToWorkspaces')),
-          h('p', { className: 'oc-side-hint' }, t('modeHint'))))
+        h('p', { className: 'oc-side-foot' }, t('modeHint')))
     }
 
-    /** The sidebar target: start or reuse a chat, then leave for the Conversation panel. */
+    /**
+     * The action behind the sidebar entry. Selecting the entry mounts this page,
+     * and a mount while a chat is already open in the main panel means the user
+     * pressed it to go back, so it leaves chat mode instead of starting a chat.
+     */
     function StartPage(props) {
-      const { ctx, t, loadState } = props
+      const { ctx, t, loadState, chatOpen, leaveChat } = props
       const [error, setError] = React.useState(null)
       const started = React.useRef(false)
+      const leaving = chatOpen()
 
       const start = React.useCallback(async () => {
         setError(null)
@@ -601,23 +618,34 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           ctx.uiWorkspace.openSession(opened.sessionId)
           await loadState()
         } catch (failure) {
-          setError(messageOf(failure))
+          setError(`${t('startFailed')} ${messageOf(failure)}`)
         }
       }, [ctx, t, loadState])
+
+      const attempt = React.useCallback(() => {
+        if (leaving) {
+          setError(null)
+          if (!leaveChat()) setError(t('nothingToReturn'))
+          return
+        }
+        void start()
+      }, [leaving, leaveChat, start, t])
 
       React.useEffect(() => {
         if (started.current) return
         started.current = true
-        void start()
-      }, [start])
+        attempt()
+      }, [attempt])
 
       return h('div', { className: 'oc-wrap' }, h('style', null, css),
-        error === null
+        leaving && error === null
+          ? h('div', { className: 'oc-start', role: 'status' }, t('switching'))
+          : error === null
           ? h('div', { className: 'oc-start', role: 'status' }, t('starting'))
           : h('div', { className: 'oc-wrap' },
-            h('p', { role: 'alert', className: 'oc-alert' }, `${t('startFailed')} ${error}`),
+            h('p', { role: 'alert', className: 'oc-alert' }, error),
             h('div', { className: 'oc-inline' },
-              h('button', { type: 'button', className: 'oc-btn oc-btn-primary', onClick: () => void start() }, t('retry')),
+              h('button', { type: 'button', className: 'oc-btn oc-btn-primary', onClick: () => attempt() }, t('retry')),
               h('p', { className: 'oc-desc' }, t('manageHint')))))
     }
 
@@ -657,7 +685,7 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
       }, t('saved'))
 
       const limit = draftLimit ?? state?.maxChats ?? 20
-      const unkept = all.filter((chat) => !chat.pinned).length
+      const unkept = all.filter((chat) => !chat.pinned && !chat.running).length
       const overLimit = state === null ? 0 : Math.max(0, unkept - limit)
 
       return h('div', { className: 'oc-wrap' },
@@ -731,17 +759,47 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
          * preset control render nothing, so nothing else can be chosen for a chat.
          * Leaving chat mode restores all three and drops the chat Workspace
          * registration, so its row disappears from the ordinary workspace list.
+         * The sidebar entry is the switch: it enters chat mode, and while a chat is
+         * open its name and glyph read as the way back.
          */
         let chatDirectory
         let occupants = []
         let inMode = null
         let closed = false
+        let entryOff = null
+
+        const chatOpen = () => currentChat(ctx, chatDirectory) !== undefined
+        const leaveChat = () => goToNormalSession(ctx, chatDirectory)
+
+        /**
+         * The sidebar entry, re-registered whenever the mode flips. The shell reads
+         * `label` on every projection and the registration bump is what triggers
+         * that, so the entry shows the mode it is in.
+         */
+        const registerEntry = () => {
+          // A collapse of the declaration would throw here, and evaluate() runs in a
+          // microtask with no handler to catch it.
+          try {
+            return ctx.slots.register({
+              name: 'sidebar.panellist',
+              id: PANEL_ID,
+              order: 20,
+              locale: NS,
+              label: () => (inMode === true ? t('backToWorkspaces') : t('nav')),
+            }, (props) => h(Glyph, { size: props.size, kind: inMode === true ? 'back' : 'bubble' }))
+          } catch {
+            return () => undefined
+          }
+        }
+
         const enterMode = (sessionId) => {
           if (occupants.length === 0) {
-            // A `single` cell renders the lowest `priority`, and the shipped
-            // occupants sit at 0, so these registrations sit below them. A dynamic
-            // browser half may be assigned a priority of its own, which is lower
-            // still; either way these win over the shipped presentation.
+            /*
+            A `single` cell renders the lowest `priority` winner, and the shipped
+            occupants sit at 0, so the value below wins them. One caveat: if our
+            registrant throws while rendering, the core marks that entry abdicated for
+            the rest of its registration and the cell falls back to the shipped
+            presentation — so the seat is only held while the render stays clean. */
             occupants = [
               ctx.slots.register({ name: 'sidebar.workspaces', locale: NS, priority: -10 },
                 (props) => h(ChatSidebar, { ...props, ctx, t, directory: chatDirectory, stateStore, loadState })),
@@ -770,11 +828,18 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           // Nothing is known yet while the catalog is still loading; deciding now
           // would tear down a chat Workspace the arriving rows are about to need.
           if (ctx.sessions.list.getSnapshot().phase === 'pending') return
+          // Every chat is invisible until the Host names its directory, so exiting
+          // now would tear down the Workspace a chat is still using.
+          if (chatDirectory === undefined) return
           const current = currentChat(ctx, chatDirectory)
           // `null` means unobserved: the first pass also clears a chat Workspace
           // left behind by a previous session that ended without an exit.
           if (inMode !== null && (current !== undefined) === inMode) return
           inMode = current !== undefined
+          if (entryOff !== null) {
+            entryOff()
+            entryOff = registerEntry()
+          }
           if (inMode) enterMode(current.id)
           else exitMode()
         }
@@ -795,20 +860,19 @@ div:has(> [data-slot] > .oc-marker) > button[aria-haspopup="menu"]{display:none}
           })
           .catch(() => undefined)
 
-        ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-          name: 'sidebar.panellist',
-          id: PANEL_ID,
-          order: 20,
-          locale: NS,
-          label: () => t('nav'),
-        }, (props) => h(Glyph, { size: props.size, kind: 'bubble' })))
+        // The callback returns the disposer it saw first, so the indirection is what
+        // keeps cleanup pointed at the live registration.
+        ctx.slots.inject('sidebar.panellist', () => {
+          entryOff = registerEntry()
+          return () => { entryOff?.() }
+        })
 
         ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main',
           key: PANEL_ID,
           locale: NS,
           label: () => t('nav'),
-        }, (props) => h(StartPage, { ...props, ctx, t, loadState })))
+        }, (props) => h(StartPage, { ...props, ctx, t, loadState, chatOpen, leaveChat })))
 
         ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section',
